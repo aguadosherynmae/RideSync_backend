@@ -1,0 +1,124 @@
+import { Location } from 'src/dev/entities/location.entity';
+import { Injectable, BadRequestException, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, In } from 'typeorm';
+import * as bcrypt from 'bcryptjs';
+import { User, UserRole } from './entities/user.entity';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { JwtService } from '@nestjs/jwt';
+import { DriversService } from 'src/drivers/drivers.service';
+import { EmailDto } from './dto/update_email.dto';
+import { UsernameDto } from './dto/update_username.dto';
+import { PasswordDto } from './dto/update_pass.dto';
+
+@Injectable()
+export class AuthService {
+  constructor(
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+    private jwtService: JwtService,
+    private driversService: DriversService,
+    @InjectRepository(Location)
+    private locationRepository: Repository<Location>,
+  ) {}
+
+  async register(dto: RegisterDto) {
+    const existingUser = await this.userRepository.findOne({
+      where: { email: dto.email },
+    });
+    if (existingUser) throw new BadRequestException("Email already registered");
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    const user = this.userRepository.create({
+      ...dto,
+      password: hashedPassword,
+    });
+    const savedUser = await this.userRepository.save(user);
+
+    if (savedUser.role === UserRole.DRIVER) {
+      await this.driversService.createDriverProfile(
+        savedUser.id,
+        dto.coop_id,
+        dto.first_name,
+        dto.last_name,
+        dto.address,
+        dto.age,
+        dto.cell_num,
+        dto.license_no,
+        dto.plate_number,
+        dto.route_one,
+        dto.route_two,
+        dto.middle_name,
+        dto.driver_img
+      );
+    }
+
+  if (savedUser.role === UserRole.DRIVER || savedUser.role === UserRole.PASSENGER) {
+      const location = this.locationRepository.create({
+      users: savedUser,
+      longtitude: null,
+      latitude: null,
+    });
+    await this.locationRepository.save(location);
+  }
+
+    return savedUser;
+  }
+  async login(dto: LoginDto) {
+    const user = await this.userRepository.findOne({
+      where: { email: dto.email },
+    });
+    if (!user) throw new UnauthorizedException("Invalid credentials");
+
+    const isMatch = await bcrypt.compare(dto.password, user.password);
+    if (!isMatch) throw new UnauthorizedException("Invalid credentials");
+
+    const payload = { id: user.id, role: user.role };
+    return {
+      accessToken: this.jwtService.sign(payload),
+    };
+  }
+  async updateUser(user_id:number, usernameDto: UsernameDto) {
+    const user = await this.userRepository.findOne({ 
+        where: { id: user_id,
+        role: In([UserRole.COOP, UserRole.DEV, UserRole.PASSENGER]),
+      },
+     });
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    user.username = usernameDto.username;
+    return await this.userRepository.save(user);
+  }
+  async updateEmail(user_id:number, emailDto: EmailDto) {
+    const user = await this.userRepository.findOne({ 
+        where: { id: user_id },
+     });
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    user.email = emailDto.email;
+    return await this.userRepository.save(user);
+  }
+  async updatePassword(user_id: number, passwordDto: PasswordDto) {
+    const user = await this.userRepository.findOne({ where: { id: user_id } });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const isMatch = await bcrypt.compare(passwordDto.current_password, user.password);
+    if (!isMatch) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const hashedPassword = await bcrypt.hash(passwordDto.password, 10);
+    user.password = hashedPassword;
+
+    await this.userRepository.save(user);
+  }
+}
