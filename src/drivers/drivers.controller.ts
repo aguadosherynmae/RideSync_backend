@@ -1,6 +1,7 @@
 import { Controller, Body, Post, Put, Param, Delete,Get, ParseIntPipe } from '@nestjs/common';
 import { DriversService  } from './drivers.service';
 import { FeedbackDto } from './dto/boarding.dto';
+import { DriverStatusDto } from './dto/driver_status.dto';
 
 @Controller("drivers")
 export class DriversController {
@@ -35,5 +36,21 @@ export class DriversController {
   @Get("allFeedbacks/:id")
   async getFeedbacks(@Param("id", ParseIntPipe) id: number) {
     return this.driversService.getFeedbacks(id);
+  }
+
+  //Driver Status
+  @Put("editStatus/:id")
+  async editDriverStatus(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() updateStatus: DriverStatusDto
+  ) {
+    return this.driversService.editDriverStatus(id, updateStatus);
+  }
+  @Get('getDriverStatus/:coop_id/:filter')
+  async getDriverStatus(
+    @Param('coop_id', ParseIntPipe) coop_id: number,
+    @Param('filter') filter: string,
+  ) {
+    return await this.driversService.getDriverStatus(coop_id, filter);
   }
 }

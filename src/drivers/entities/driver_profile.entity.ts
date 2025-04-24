@@ -5,6 +5,8 @@ import { DriverRating } from './driver_rating.entity';
 import { PassengerViolation } from 'src/passengers/entities/passenger_violation.entity';
 import { Record } from 'src/coop/entities/record.entity';
 import { DriverRiskLevel } from './driver_risk_level.entity';
+import { DriverStatus } from './driver_status.entity';
+import { Bus } from './bus.entity';
   
 @Entity()
 export class DriverProfile  {
@@ -14,7 +16,7 @@ export class DriverProfile  {
   @Column()
   first_name: string;
 
-  @Column({nullable:true})
+  @Column({ nullable:true })
   middle_name?: string;
 
   @Column()
@@ -61,4 +63,8 @@ export class DriverProfile  {
   record: Record[];
   @OneToOne(() => DriverRiskLevel, (driver_risk) => driver_risk.driver_profile,  { cascade: true})
   driver_risk: DriverRiskLevel;
+  @OneToOne(() => DriverStatus, (driver_status) => driver_status.driver_profile,  { cascade: true})
+  driver_status: DriverStatus;
+  @OneToOne(() => Bus, (bus) => bus.driver_profile,  { cascade: true})
+  bus: Bus;
 }

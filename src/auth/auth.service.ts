@@ -11,6 +11,8 @@ import { DriversService } from 'src/drivers/drivers.service';
 import { EmailDto } from './dto/update_email.dto';
 import { UsernameDto } from './dto/update_username.dto';
 import { PasswordDto } from './dto/update_pass.dto';
+import { Risk, RiskLevel } from 'src/coop/entities/risk.entity';
+import { Bus, State } from 'src/drivers/entities/bus.entity';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +23,10 @@ export class AuthService {
     private driversService: DriversService,
     @InjectRepository(Location)
     private locationRepository: Repository<Location>,
+    @InjectRepository(Risk)
+    private riskRepository: Repository<Risk>,
+    @InjectRepository(Bus)
+    private busRepository: Repository<Bus>,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -53,8 +59,26 @@ export class AuthService {
         dto.middle_name,
         dto.driver_img
       );
-    }
-
+    
+      const userWithProfile = await this.userRepository.findOne({
+        where: { id: savedUser.id },
+        relations: ['driver_profile'], 
+      });
+    
+      const savedDriver = userWithProfile?.driver_profile;
+      if (!savedDriver) {
+        throw new Error('Driver profile not found after creation');
+      }
+    
+      const bus = this.busRepository.create({
+        driver_profile: savedDriver,
+        capacity: dto.capacity,
+        state: State.OFF,
+      });
+    
+      await this.busRepository.save(bus);
+  }  
+  
   if (savedUser.role === UserRole.DRIVER || savedUser.role === UserRole.PASSENGER) {
       const location = this.locationRepository.create({
       users: savedUser,
@@ -63,6 +87,28 @@ export class AuthService {
     });
     await this.locationRepository.save(location);
   }
+
+  if (savedUser.role === UserRole.COOP) {
+    const risks = [
+      this.riskRepository.create({
+        coop: savedUser,
+        risk_level: RiskLevel.HIGH,
+        value: 50,
+      }),
+      this.riskRepository.create({
+        coop: savedUser,
+        risk_level: RiskLevel.MEDIUM,
+        value: 30,
+      }),
+      this.riskRepository.create({
+        coop: savedUser,
+        risk_level: RiskLevel.LOW,
+        value: 10,
+      }),
+    ];
+  
+    await this.riskRepository.save(risks);
+  }  
 
     return savedUser;
   }

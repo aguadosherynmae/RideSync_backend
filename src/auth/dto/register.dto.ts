@@ -19,7 +19,7 @@ export class RegisterDto {
   @IsNotEmpty()
   username: string;
 
-  // Driver 
+  // Driver Profile 
   @ValidateIf((o) => o.role === UserRole.DRIVER)
   @IsString()
   @IsNotEmpty()
@@ -78,4 +78,9 @@ export class RegisterDto {
   @IsNumber()
   @IsNotEmpty()
   coop_id: number;
+
+  //Driver Bus
+  @ValidateIf((o) => o.role === UserRole.DRIVER)
+  @IsNotEmpty()
+  capacity: number;
 }

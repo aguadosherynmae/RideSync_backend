@@ -1,3 +1,4 @@
+import { Cron } from '@nestjs/schedule';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
@@ -9,8 +10,10 @@ import { ReportDto } from './dto/report.dto';
 import { BoardStat, BoardingDetails } from 'src/passengers/entities/boarding_details.entity';
 import { Reports } from './entities/report.entity';
 import { Record, ReportBy } from './entities/record.entity';
-import { Risk } from './entities/risk.entity';
+import { Risk, RiskLevel } from './entities/risk.entity';
 import { DriverRiskLevel } from 'src/drivers/entities/driver_risk_level.entity';
+import { RiskDto } from './dto/risk.dto';
+import { DriverProfile } from 'src/drivers/entities/driver_profile.entity';
 
 @Injectable()
 export class CoopService {
@@ -35,6 +38,9 @@ export class CoopService {
 
     @InjectRepository(DriverRiskLevel)
     private driverRiskRepository: Repository<DriverRiskLevel>,
+
+    @InjectRepository(DriverProfile)
+    private driveRepository: Repository<DriverProfile>,
 
   ) {}
     
@@ -105,7 +111,7 @@ export class CoopService {
       throw new NotFoundException(`Violation not found`);
     }
   }
-  async getCoopViolations(coop_id: number) {
+  async getCoopVR(coop_id: number) {
     const violations = await this.violationRepository.find({
       where: {
         coop: { id: coop_id },
@@ -113,10 +119,21 @@ export class CoopService {
       },
     });
 
-    if (!violations.length) {
-      throw new NotFoundException("No List of Violations");
-    }
-    return violations;
+    const risks = await this.riskRepository.findAndCount({
+      where: {
+        coop: {
+          id: coop_id
+        }
+      }
+    });
+
+    const message = !violations.length ? "No List of Violations" : null;
+
+    return {
+      violations,
+      risks,
+      message
+    };
   }
   async getViolations() {
     const violations = await this.violationRepository.find({
@@ -165,6 +182,33 @@ export class CoopService {
 
       await this.driverRiskRepository.save(driverRisk);
     }
+  }
+  async resetDriverRiskLevel() {
+    const allDrivers = await this.driverRiskRepository.find({});
+    const updatedDrivers = allDrivers.map(driver => {
+      if (driver.risk_level === 'high') {
+        driver.risk_level = RiskLevel.MEDIUM;
+      } else if (driver.risk_level === 'medium') {
+        driver.risk_level = RiskLevel.LOW;
+      } else if (driver.risk_level === 'low') {
+        driver.risk_level = RiskLevel.NONE;
+      }
+      return driver;
+    });
+  
+    await Promise.all(updatedDrivers.map(driver => this.driverRiskRepository.save(driver)));
+  }  
+  @Cron('0 0 30 4 *') // April 30
+  async resetApril() {
+    await this.resetDriverRiskLevel();
+  }
+  @Cron('0 0 31 8 *') // August 31
+  async resetAugust() {
+    await this.resetDriverRiskLevel();
+  }
+  @Cron('0 0 31 12 *') // December 31
+  async resetDecember() {
+    await this.resetDriverRiskLevel();
   }
 
   //Report
@@ -230,5 +274,100 @@ export class CoopService {
     const driver_id = activeBoarding.driver.id
     await this.updateDriverRiskLevel(driver_id);
     return report;
+  }
+  async editReport(id: number, update_report: ReportDto) {
+    const report = await this.reportRepository.findOne({ where: { id } });
+    if (!report) {
+      throw new NotFoundException("Driver Report not found");
+    }
+
+    if (update_report.violation_id) {
+      const violation = await this.violationRepository.findOne({
+        where: { id: update_report.violation_id },
+      });
+      if (!violation) {
+        throw new NotFoundException("Violation not found");
+      }
+      report.violation = violation;
+    }
+
+    return await this.reportRepository.save(report);
+  }
+  async PassDeleteReports(id: number) {
+    const soft_delete = await this.reportRepository.findOne({
+      where: {
+        id
+      }
+    });
+    if (!soft_delete) {
+      throw new NotFoundException(`Report not found`);
+    }
+    soft_delete.pass_deletedAt = new Date();
+    await this.reportRepository.save(soft_delete);
+  }
+  async CoopDeleteReports(id: number) {
+    const soft_delete = await this.reportRepository.findOne({
+      where: {
+        id
+      }
+    });
+    if (!soft_delete) {
+      throw new NotFoundException(`Report not found`);
+    }
+    soft_delete.coop_deletedAt = new Date();
+    await this.reportRepository.save(soft_delete);
+  }
+  async getPassReports(passenger_id: number) {
+    const reports = await this.reportRepository.find({
+      where: {
+        boarding: {
+          request: {
+            passenger: {
+              id: passenger_id
+            }
+          }
+        },
+        pass_deletedAt: IsNull(),
+      },
+      order: { created_at: "DESC" },
+      relations: ["violation", "boarding.driver"],
+    });
+
+    if (!reports.length) {
+      throw new NotFoundException("No List of Reports");
+    }
+    return reports;
+  }
+  async getCoopReports(coop_id: number) {
+    const reports = await this.reportRepository.find({
+      where: {
+        boarding: {
+          driver: {
+            coop: {
+              id: coop_id
+            }
+          }
+        },
+        coop_deletedAt: IsNull(),
+      },
+      order: { created_at: "DESC" },
+      relations: ["boarding.request.passenger", "violation", "boarding.driver"],
+    });
+
+    if (!reports.length) {
+      throw new NotFoundException("No List of Reports");
+    }
+    return reports;
+  }
+
+  //Risk
+  async editRisk(id: number, updateRisk: RiskDto) {
+    const risk = await this.riskRepository.findOne({ where: { id } });
+    if (!risk) {
+      throw new NotFoundException("Risk not found");
+    }
+
+    Object.assign(risk, updateRisk);
+    return await this.riskRepository.save(risk);
   }
 }

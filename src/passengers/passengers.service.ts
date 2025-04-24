@@ -1,4 +1,4 @@
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository, } from '@nestjs/typeorm';
 import { Repository, IsNull, In } from 'typeorm';

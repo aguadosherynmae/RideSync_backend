@@ -2,6 +2,8 @@ import { Controller, Post, Body, Param, ParseIntPipe, Put, Delete, Get } from '@
 import { CoopService } from './coop.service';
 import { ViolationDto } from './dto/violation.dto';
 import { UpdateViolationDto } from './dto/update_violation.dto';
+import { ReportDto } from './dto/report.dto';
+import { RiskDto } from './dto/risk.dto';
 
 @Controller("coop")
 export class CoopController {
@@ -41,12 +43,53 @@ export class CoopController {
   async softDeleteDefaultViolation(@Param("id", ParseIntPipe) id: number) {
     return this.coopService.softDeleteDefaultViolation(id);
   }
-  @Get("coopViolations/:id")
-  async getCoopViolations(@Param("id", ParseIntPipe) id: number) {
-    return this.coopService.getCoopViolations(id);
+  @Get("getCoopVR/:id")
+  async getCoopVR(@Param("id", ParseIntPipe) id: number) {
+    return this.coopService.getCoopVR(id);
   }
   @Get("getViolations")
   async getViolations() {
     return this.coopService.getViolations();
+  }
+
+  //Report
+  @Post("createReport/:id")
+  async createReport(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() reportDto: ReportDto
+  ) {
+    return this.coopService.createReport(id, reportDto);
+  }
+  @Put("editReport/:id")
+  async editReport(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() update_report: ReportDto
+  ) {
+    return this.coopService.editReport(id, update_report);
+  }
+  @Delete("deleteReport/:id")
+  async PassDeleteReports(@Param("id", ParseIntPipe) id: number) {
+    return this.coopService.PassDeleteReports(id);
+  }
+  @Delete("CoopdeleteReport/:id")
+  async CoopDeleteReports(@Param("id", ParseIntPipe) id: number) {
+    return this.coopService.CoopDeleteReports(id);
+  }
+  @Get("getPassReports/:id")
+  async getPassReports(@Param("id", ParseIntPipe) id: number) {
+    return this.coopService.getPassReports(id);
+  }
+  @Get("getCoopReports/:id")
+  async getCoopReports(@Param("id", ParseIntPipe) id: number) {
+    return this.coopService.getCoopReports(id);
+  }
+
+  //Risk
+  @Put("editRisk/:id")
+  async editRisk(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() updateRisk: RiskDto
+  ) {
+    return this.coopService.editRisk(id, updateRisk);
   }
 }

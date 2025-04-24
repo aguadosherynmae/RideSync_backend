@@ -6,10 +6,12 @@ import { User } from './entities/user.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DriversModule } from 'src/drivers/drivers.module';
 import { Location } from 'src/dev/entities/location.entity';
+import { Risk } from 'src/coop/entities/risk.entity';
+import { Bus } from 'src/drivers/entities/bus.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Location]),
+    TypeOrmModule.forFeature([User, Location, Risk, Bus]),
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'default-secret', 
       signOptions: { expiresIn: '1h' },

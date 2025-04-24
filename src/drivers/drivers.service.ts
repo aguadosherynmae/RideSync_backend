@@ -8,6 +8,9 @@ import { DriverRating } from './entities/driver_rating.entity';
 import { FeedbackDto } from './dto/boarding.dto';
 import { BoardStat, BoardingDetails } from 'src/passengers/entities/boarding_details.entity';
 import { DriverRiskLevel } from './entities/driver_risk_level.entity';
+import { DriverStatus, Status } from './entities/driver_status.entity';
+import { DriverStatusDto } from './dto/driver_status.dto';
+import { Bus, State } from './entities/bus.entity';
 
 @Injectable()
 export class DriversService {
@@ -28,7 +31,13 @@ export class DriversService {
     private driverRatingRepository : Repository<DriverRating>,
 
     @InjectRepository(DriverRiskLevel)
-    private driverRiskRepository : Repository<DriverRiskLevel>
+    private driverRiskRepository : Repository<DriverRiskLevel>,
+
+    @InjectRepository(DriverStatus)
+    private driverStatusRepository : Repository<DriverStatus>,
+
+    @InjectRepository(Bus)
+    private busRepository : Repository<Bus>
   ) {}
 
   //Driver Profile
@@ -89,6 +98,12 @@ export class DriversService {
       risk_level: 'none',
     });
     await this.driverRiskRepository.save(driverRisk);
+
+    const driverStatus = this.driverStatusRepository.create({
+      driver_profile: savedDriverProfile,
+      status: Status.OFF_DUTY,
+    });
+    await this.driverStatusRepository.save(driverStatus);
 
     return savedDriverProfile;
   }
@@ -264,4 +279,86 @@ export class DriversService {
     }
     return feedbacks;
   }
+
+  //Driver Status
+  async editDriverStatus(id: number, updateStatus: DriverStatusDto) {
+    const driverStatus = await this.driverStatusRepository.findOne({
+      where: { id },
+    });
+    if (!driverStatus) {
+      throw new NotFoundException('Driver status not found');
+    }
+  
+    Object.assign(driverStatus, updateStatus);
+    const updatedDriverStatus = await this.driverStatusRepository.save(driverStatus);
+  
+    const bus = await this.busRepository.findOne({
+      where: {
+        driver_profile: {
+          driver_status: {
+            id: id
+          }
+        },
+      },
+    });
+    if (!bus) {
+      throw new NotFoundException('Bus for driver not found');
+    }
+  
+    bus.state = updateStatus.status === 'in_transit' ? State.BLUE : State.OFF;
+    await this.busRepository.save(bus);
+  
+    return updatedDriverStatus;
+  } 
+  async getDriverStatus(coop_id: number, filter: string) {
+    if (filter === 'in_transit') {
+      const transitDrivers = await this.driverStatusRepository.find({
+        where: { 
+          driver_profile: {
+            coop: {
+              id: coop_id
+            }
+          },
+          status: Status.IN_TRANSIT,
+        },
+        relations: ["driver_profile"],
+      });
+      if (transitDrivers.length === 0) {
+        throw new NotFoundException("No in transit driver");
+      }
+      return transitDrivers;
+  
+    } else if (filter === 'off_duty') {
+      const offDrivers = await this.driverStatusRepository.find({
+          where: { 
+            driver_profile: {
+              coop: {
+                id: coop_id
+              }
+            },
+            status: Status.OFF_DUTY,
+          },
+          relations: ["driver_profile"],
+        });
+        if (offDrivers.length === 0) {
+          throw new NotFoundException("No off duty driver");
+        }
+        return offDrivers;
+    } else {
+      const allDrivers = await this.driverStatusRepository.find({
+        where: { 
+          driver_profile: {
+            coop: {
+              id: coop_id
+            }
+          },
+        },
+        relations: ["driver_profile"],
+      });
+      if (allDrivers.length === 0) {
+        throw new NotFoundException("No driver");
+      }
+      return allDrivers;
+    }
+  } 
 }
