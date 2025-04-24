@@ -11,7 +11,7 @@ export class DevService {
     private helpRepository: Repository<Help>,
 ) {}
 
-//Help
+    //Help
     async createHelp(helpDto: HelpDto) {
         const { title, description, video_url } = helpDto;
 
@@ -46,6 +46,5 @@ export class DevService {
           throw new NotFoundException("No List of Help");
         }
         return help;
-    }
-      
+    }     
 }

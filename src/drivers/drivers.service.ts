@@ -11,6 +11,11 @@ import { DriverRiskLevel } from './entities/driver_risk_level.entity';
 import { DriverStatus, Status } from './entities/driver_status.entity';
 import { DriverStatusDto } from './dto/driver_status.dto';
 import { Bus, State } from './entities/bus.entity';
+import { IssueReportDto } from './dto/issue_report.dto';
+import { Record, ReportBy } from 'src/coop/entities/record.entity';
+import { Violation } from 'src/coop/entities/violation.entity';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { UpdateDriverProfileDto } from './dto/driver_profile.dto';
 
 @Injectable()
 export class DriversService {
@@ -37,7 +42,13 @@ export class DriversService {
     private driverStatusRepository : Repository<DriverStatus>,
 
     @InjectRepository(Bus)
-    private busRepository : Repository<Bus>
+    private busRepository : Repository<Bus>,
+
+    @InjectRepository(Record)
+    private recordRepository : Repository<Record>,
+
+    @InjectRepository(Violation)
+    private violationRepository : Repository<Violation>
   ) {}
 
   //Driver Profile
@@ -106,6 +117,41 @@ export class DriversService {
     await this.driverStatusRepository.save(driverStatus);
 
     return savedDriverProfile;
+  }
+  async editDriverProfile(id: number, updateProfile: UpdateDriverProfileDto) {
+    const driverProfile = await this.driverRepository.findOne({
+      where: { id },
+      relations: ['bus'],
+    });
+    if (!driverProfile) {
+      throw new NotFoundException("Driver profile not found");
+    }
+    const bus = driverProfile.bus;
+    if (!bus) {
+      throw new NotFoundException("Bus not found");
+    }
+    if (updateProfile.capacity !== undefined) {
+      bus.capacity = updateProfile.capacity;
+      await this.busRepository.save(bus);
+    }
+    
+    Object.assign(driverProfile, updateProfile);
+    const savedDriver = await this.driverRepository.save(driverProfile);
+
+    return {
+      savedDriver,
+      savedBus: bus,
+    };
+  }
+  async getDriverProfile(id: number) {
+    const driver = await this.driverRepository.findOne({
+      where: { id },
+      relations: ["bus"],
+    });
+    if (!driver) {
+      throw new NotFoundException("Driver profile not found");
+    }
+    return driver;
   }
 
   //Feedback
@@ -361,4 +407,85 @@ export class DriversService {
       return allDrivers;
     }
   } 
+
+  //Bus
+  async issueReport(driver_id: number, updateBus: IssueReportDto) {
+    const bus_status = await this.busRepository.findOne({ 
+      where: {
+        driver_profile: {
+          id: driver_id
+        }
+      }    
+     });
+    if (!bus_status) {
+      throw new NotFoundException("Bus not found");
+    }
+    bus_status.state = State.RED;
+    Object.assign(bus_status, updateBus);
+    return await this.busRepository.save(bus_status);
+  }
+  async issueFix(driver_id: number) {
+    const bus_status = await this.busRepository.findOne({ 
+      where: {
+        driver_profile: {
+          id: driver_id,
+          driver_status: {
+            status: Status.IN_TRANSIT
+          }
+        }
+      }    
+     });
+    if (!bus_status) {
+      throw new NotFoundException("Bus not found");
+    }
+    bus_status.state = State.BLUE;
+    bus_status.issue_desc = ' ';
+    Object.assign(bus_status);
+    return await this.busRepository.save(bus_status);
+  }
+  /*@Cron(CronExpression.EVERY_10_MINUTES)
+  async fullCapacityReport() {
+    const buses = await this.busRepository.find({
+      where: [
+        { state: State.BLUE },
+        { state: State.ORANGE }
+      ],
+      relations: ['driver_profile', 'driver_profile.boarding'],
+    });
+
+    for (const bus of buses) {
+      if (bus.driver_profile && bus.driver_profile.boarding) {
+        const activeBoardings = bus.driver_profile.boarding.filter(
+          boarding => boarding.board_stat === BoardStat.ACTIVE
+        );
+
+        const totalBoarding = activeBoardings.length;
+
+        if (totalBoarding > bus.capacity && bus.state === State.BLUE) {
+          bus.state = State.ORANGE;
+          await this.busRepository.save(bus);
+
+          const driver = bus.driver_profile;
+          const capacityViolation = await this.violationRepository.findOne({
+            where: { id: 1 },
+          });
+
+          if (!capacityViolation) {
+            throw new NotFoundException("Violation not found");
+          }
+
+          await this.recordRepository.save({
+            driver,
+            report_by: ReportBy.SYSTEM,
+            violation: capacityViolation,
+            created_at: new Date(),
+          });
+        }
+        if (totalBoarding <= bus.capacity && bus.state === State.ORANGE) {
+          bus.state = State.BLUE;
+          await this.busRepository.save(bus);
+        }
+      }
+    }
+  }*/
 }

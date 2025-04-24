@@ -2,11 +2,27 @@ import { Controller, Body, Post, Put, Param, Delete,Get, ParseIntPipe } from '@n
 import { DriversService  } from './drivers.service';
 import { FeedbackDto } from './dto/boarding.dto';
 import { DriverStatusDto } from './dto/driver_status.dto';
+import { IssueReportDto } from './dto/issue_report.dto';
+import { UpdateDriverProfileDto } from './dto/driver_profile.dto';
 
 @Controller("drivers")
 export class DriversController {
   constructor(private readonly driversService: DriversService) {}
   
+  //Driver Profile
+  @Put("editProfile/:id")
+  async editDriverProfile(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() updateProfile: UpdateDriverProfileDto
+  ) {
+    return this.driversService.editDriverProfile(id, updateProfile);
+  }
+  @Get("getProfile/:id")
+  async getDriverProfile(@Param("id", ParseIntPipe) id: number) {
+    return this.driversService.getDriverProfile(id);
+  }
+
+  //Feedback
   @Post("createFeedback/:id")
   async createFeedback(
     @Param("id", ParseIntPipe) id: number,
@@ -52,5 +68,20 @@ export class DriversController {
     @Param('filter') filter: string,
   ) {
     return await this.driversService.getDriverStatus(coop_id, filter);
+  }
+
+  //Bus Status
+  @Put("issueReport/:id")
+  async issueReport(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() updateBus: IssueReportDto
+  ) {
+    return this.driversService.issueReport(id, updateBus);
+  }
+  @Put("issueFix/:id")
+  async issueFix(
+    @Param("id", ParseIntPipe) id: number
+  ) {
+    return this.driversService.issueFix(id);
   }
 }

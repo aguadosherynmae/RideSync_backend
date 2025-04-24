@@ -94,7 +94,6 @@ export class PassengersService {
   
     return await this.requestRepository.save(request_ride);
   }
-  
   async editRequest(passenger_id: number, requestDto: RequesDto) {
     const editReq = await this.requestRepository.findOne({ 
         where: { 
