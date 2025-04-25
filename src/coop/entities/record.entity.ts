@@ -1,6 +1,7 @@
 import { DriverProfile } from 'src/drivers/entities/driver_profile.entity';
 import { Violation } from './violation.entity';
-import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn, Column, CreateDateColumn, OneToOne } from 'typeorm';
+import { Discount } from 'src/passengers/entities/discount.entity';
 
 export enum ReportBy {
   SYSTEM = 'system',
@@ -26,4 +27,6 @@ export class Record {
   @ManyToOne(() => Violation, (violation) => violation.record, { onDelete: 'CASCADE' }) 
   @JoinColumn({ name: 'violation_id' })
   violation: Violation;
+  @OneToOne(() => Discount, (discount) => discount.record,  { cascade: true})
+  discount: Discount;
 }

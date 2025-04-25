@@ -5,7 +5,6 @@ import { DriverProfile } from './entities/driver_profile.entity';
 import { User } from 'src/auth/entities/user.entity';
 import { Feedback } from './entities/feedback.entity';
 import { DriverRating } from './entities/driver_rating.entity';
-import { FeedbackDto } from './dto/boarding.dto';
 import { BoardStat, BoardingDetails } from 'src/passengers/entities/boarding_details.entity';
 import { DriverRiskLevel } from './entities/driver_risk_level.entity';
 import { DriverStatus, Status } from './entities/driver_status.entity';
@@ -16,6 +15,7 @@ import { Record, ReportBy } from 'src/coop/entities/record.entity';
 import { Violation } from 'src/coop/entities/violation.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { UpdateDriverProfileDto } from './dto/driver_profile.dto';
+import { FeedbackDto } from './dto/feedback.dto';
 
 @Injectable()
 export class DriversService {

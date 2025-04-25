@@ -4,6 +4,8 @@ import { ViolationDto } from './dto/violation.dto';
 import { UpdateViolationDto } from './dto/update_violation.dto';
 import { ReportDto } from './dto/report.dto';
 import { RiskDto } from './dto/risk.dto';
+import { RecordDto } from './dto/record.dto';
+import { FareDto } from './dto/fare.dto';
 
 @Controller("coop")
 export class CoopController {
@@ -91,5 +93,41 @@ export class CoopController {
     @Body() updateRisk: RiskDto
   ) {
     return this.coopService.editRisk(id, updateRisk);
+  }
+
+  //Record
+  @Post("createRecord")
+  async createRecord(@Body() recordDto: RecordDto) {
+    return this.coopService.createRecord(recordDto);
+  }
+
+  //Fare
+  @Post("createFare/:id")
+  async createFare(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() fareDto: FareDto
+  ) {
+    return this.coopService.createFare(id, fareDto);
+  }
+  @Put("editFare/:id")
+  async editFare(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() updateFare: FareDto
+  ) {
+    return this.coopService.editFare(id, updateFare);
+  }
+  @Delete("deleteFare/:id")
+  async softDeleteFare(@Param("id", ParseIntPipe) id: number) {
+    return this.coopService.softDeleteFare(id);
+  }
+  @Get("coopFares/:id")
+  async getFares(@Param("id", ParseIntPipe) id: number) {
+    return this.coopService.getFares(id);
+  }
+
+  //Dashboard
+  @Get("dashboard/:id")
+  async dashboard(@Param("id", ParseIntPipe) id: number) {
+    return this.coopService.dashboard(id);
   }
 }

@@ -1,9 +1,9 @@
 import { Controller, Body, Post, Put, Param, Delete,Get, ParseIntPipe } from '@nestjs/common';
 import { DriversService  } from './drivers.service';
-import { FeedbackDto } from './dto/boarding.dto';
 import { DriverStatusDto } from './dto/driver_status.dto';
 import { IssueReportDto } from './dto/issue_report.dto';
 import { UpdateDriverProfileDto } from './dto/driver_profile.dto';
+import { FeedbackDto } from './dto/feedback.dto';
 
 @Controller("drivers")
 export class DriversController {

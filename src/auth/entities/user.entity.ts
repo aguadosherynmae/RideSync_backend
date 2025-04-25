@@ -1,7 +1,9 @@
+import { Fare } from 'src/coop/entities/fare.entity';
 import { Risk } from 'src/coop/entities/risk.entity';
 import { Violation } from 'src/coop/entities/violation.entity';
 import { Location } from 'src/dev/entities/location.entity';
 import { DriverProfile } from 'src/drivers/entities/driver_profile.entity';
+import { Card } from 'src/passengers/entities/card.entity';
 import { PassengerProfile } from 'src/passengers/entities/passenger_profile.entity';
 import { PassengerViolation } from 'src/passengers/entities/passenger_violation.entity';
 import { RequestRide } from 'src/passengers/entities/request_ride.entity';
@@ -36,11 +38,11 @@ export class User {
   @OneToOne(() => DriverProfile, (driver_profile) => driver_profile.driver,  { cascade: true})
   driver_profile: DriverProfile;
   @OneToMany(() => DriverProfile, (drivers) => drivers.coop,  { cascade: true})
-  drivers: DriverProfile; 
+  drivers: DriverProfile[]; 
   @OneToOne(() => Location, (location) => location.users,  { cascade: true})
   location: Location;
   @OneToMany(() => RequestRide, (request) => request.passenger,  { cascade: true})
-  request: RequestRide; 
+  request: RequestRide[]; 
   @OneToOne(() => PassengerProfile, (passenger_profile) => passenger_profile.user,  { cascade: true})
   passenger_profile: PassengerProfile;
   @OneToMany(() => PassengerViolation, (passenger_violation) => passenger_violation.passenger, { cascade: true })
@@ -49,4 +51,8 @@ export class User {
   violation: Violation[];
   @OneToMany(() => Risk, (risk) => risk.coop, { cascade: true })
   risk: Risk[];
+  @OneToMany(() => Fare, (fare) => fare.coop, { cascade: true })
+  fare: Fare[];
+  @OneToOne(() => Card, (card) => card.user,  { cascade: true})
+  card: Card;
 }

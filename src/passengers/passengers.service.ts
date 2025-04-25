@@ -146,7 +146,7 @@ export class PassengersService {
 
   //Boarding Details
   async createPassengerBoarding(passenger_id: number, boarding: BoardingDto) {
-    const { driver_id } = boarding;
+    const { driver_id, current_loc } = boarding;
 
     const existingActiveBoard = await this.boardingRepository.findOne({
       where: {
@@ -185,6 +185,7 @@ export class PassengersService {
       request: activeRequest ,
       driver,
       board_stat: BoardStat.ACTIVE,
+      current_loc,
     });
 
     await this.boardingRepository.save(board);

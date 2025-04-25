@@ -1,9 +1,9 @@
 import { Cron } from '@nestjs/schedule';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, DeepPartial } from 'typeorm';
 import { Violation } from './entities/violation.entity';
-import { User } from 'src/auth/entities/user.entity';
+import { User, UserRole } from 'src/auth/entities/user.entity';
 import { ViolationDto } from './dto/violation.dto';
 import { UpdateViolationDto } from './dto/update_violation.dto';
 import { ReportDto } from './dto/report.dto';
@@ -14,6 +14,10 @@ import { Risk, RiskLevel } from './entities/risk.entity';
 import { DriverRiskLevel } from 'src/drivers/entities/driver_risk_level.entity';
 import { RiskDto } from './dto/risk.dto';
 import { DriverProfile } from 'src/drivers/entities/driver_profile.entity';
+import { RecordDto } from './dto/record.dto';
+import { Fare } from './entities/fare.entity';
+import { FareDto } from './dto/fare.dto';
+import { DriverStatus, Status } from 'src/drivers/entities/driver_status.entity';
 
 @Injectable()
 export class CoopService {
@@ -40,7 +44,13 @@ export class CoopService {
     private driverRiskRepository: Repository<DriverRiskLevel>,
 
     @InjectRepository(DriverProfile)
-    private driveRepository: Repository<DriverProfile>,
+    private driverRepository: Repository<DriverProfile>,
+
+    @InjectRepository(Fare)
+    private fareRepository: Repository<Fare>,
+
+    @InjectRepository(DriverStatus)
+    private driverStatusRepository: Repository<DriverStatus>,
 
   ) {}
     
@@ -369,5 +379,126 @@ export class CoopService {
 
     Object.assign(risk, updateRisk);
     return await this.riskRepository.save(risk);
+  }
+
+  //Record
+  async createRecord(recordDto: RecordDto) {
+    const { driver_id, violation_id } = recordDto;
+  
+    const driver = await this.driverRepository.findOne({ where: { id: driver_id } });
+    if (!driver) {
+      throw new NotFoundException("Driver not found");
+    }
+  
+    const violation = await this.violationRepository.findOne({ where: { id: violation_id } });
+    if (!violation) {
+      throw new NotFoundException("Violation not found");
+    }
+  
+    const record = this.recordRepository.create({ 
+      driver, 
+      violation, 
+      report_by:ReportBy.COOP
+    });
+    await this.recordRepository.save(record);
+  
+    await this.updateDriverRiskLevel(driver_id);
+  
+    return record;
+  }
+
+  //Fare
+  async createFare(coop_id: number, fareDto: FareDto) {
+    const { route_from, route_to, amount } = fareDto;
+    const activeCoop = await this.userRepository.findOne({ 
+      where: { 
+        id: coop_id,
+        role: UserRole.COOP
+      } 
+    });
+    if (!activeCoop) {
+      throw new NotFoundException("Coop not found");
+    }
+
+    const fare = this.fareRepository.create({
+      coop: activeCoop,
+      route_from,
+      route_to,
+      amount
+    } as DeepPartial<Fare>);
+
+    return await this.fareRepository.save(fare);
+  }
+  async editFare(id: number, updateFare: FareDto) {
+    const fare = await this.fareRepository.findOne({ where: { id } });
+    if (!fare) {
+      throw new NotFoundException("Id not found");
+    }
+
+    Object.assign(fare, updateFare);
+    return await this.fareRepository.save(fare);
+  }
+  async softDeleteFare(id: number) {
+    const soft_delete = await this.fareRepository.softDelete(id);
+    if (!soft_delete) {
+      throw new NotFoundException(`Fare not found`);
+    }
+  }
+  async getFares(coop_id: number) {
+    const fares = await this.fareRepository.find({
+      where: { deletedAt: IsNull(),
+        coop: { id: coop_id },
+    },
+    });
+
+    if (!fares.length) {
+      throw new NotFoundException("No List of Fares");
+    }
+    return fares;
+  }
+
+  //Dashboard
+  async dashboard(coop_id: number) {
+    const current_date = new Date();
+    const todays_record = await this.recordRepository.count({
+      where: { 
+        created_at: current_date,
+        driver: {
+          coop: {
+            id: coop_id
+          }
+        }
+    },
+    });
+    const duty_driver = await this.driverStatusRepository.count({
+      where: {
+        status: Status.IN_TRANSIT,
+        driver_profile: {
+          coop: {
+            id: coop_id
+          }
+        }
+      }
+    });
+    const reports = await this.reportRepository.count({
+      where: {
+        created_at: current_date,
+        boarding: {
+          driver: {
+            coop: {
+              id: coop_id
+            }
+          }
+        }
+      }
+    });
+
+    return {
+      data: {
+        todays_record,
+        duty_driver,
+        reports
+      }
+    }
   }
 }

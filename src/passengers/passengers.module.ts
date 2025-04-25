@@ -8,9 +8,12 @@ import { BoardingDetails } from './entities/boarding_details.entity';
 import { DriverProfile } from 'src/drivers/entities/driver_profile.entity';
 import { PassengerProfile } from './entities/passenger_profile.entity';
 import { PassengerViolation } from './entities/passenger_violation.entity';
+import { Card } from './entities/card.entity';
+import { CashlessPayment } from './entities/cashless_payment.entity';
+import { Discount } from './entities/discount.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, RequestRide, BoardingDetails, DriverProfile, PassengerProfile, PassengerViolation])],
+  imports: [TypeOrmModule.forFeature([User, RequestRide, BoardingDetails, DriverProfile, PassengerProfile, PassengerViolation, Card, CashlessPayment, Discount])],
   controllers: [PassengersController],
   providers: [PassengersService]
 })
