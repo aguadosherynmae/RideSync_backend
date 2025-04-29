@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Put, Param, ParseIntPipe, Get, Delete } from '@nestjs/common';
 import { DevService } from './dev.service';
 import { HelpDto } from './dto/help.dto';
+import { SubscriptionDto } from './dto/subscription.dto';
 
 @Controller('dev')
 export class DevController {
@@ -25,5 +26,22 @@ export class DevController {
     @Get("getHelp")
     async getHelp() {
         return this.devService.getHelp();
+    }
+
+    //Subscription
+    @Put("renew/:id")
+    async renew(
+        @Param("id", ParseIntPipe) id: number,
+        @Body() updateSub: SubscriptionDto
+    ) {
+        return this.devService.renew(id, updateSub);
+    }
+    @Get("getcoopSub/:id")
+    async getcoopSub(@Param("id", ParseIntPipe) id: number) {
+        return this.devService.getcoopSub(id);
+    }
+    @Get("getSubscriptions")
+    async getSubscriptions() {
+        return this.devService.getSubscriptions();
     }
 }

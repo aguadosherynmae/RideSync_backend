@@ -1,3 +1,4 @@
+import { Subscription } from  'src/dev/entities/subscription.entity';
 import { Fare } from 'src/coop/entities/fare.entity';
 import { Risk } from 'src/coop/entities/risk.entity';
 import { Violation } from 'src/coop/entities/violation.entity';
@@ -14,6 +15,12 @@ export enum UserRole {
   DRIVER = 'driver',
   COOP = 'coop',
   DEV = 'developer',
+}
+
+export enum SubscriptionStat {
+  EXPIRED = 'expired',
+  EXPIRING = 'expiring',
+  SUBSCRIBED = 'subscribed',
 }
 
 @Entity()
@@ -33,6 +40,10 @@ export class User {
   // Passenger-specific, Coop-specific, Dev-specific
   @Column({ nullable: true })
   username?: string;
+
+  //Coop-specific
+  @Column({ type: 'enum', enum: SubscriptionStat, nullable: true })
+  subscription_status: SubscriptionStat;
 
   // Relationships 
   @OneToOne(() => DriverProfile, (driver_profile) => driver_profile.driver,  { cascade: true})
@@ -55,4 +66,6 @@ export class User {
   fare: Fare[];
   @OneToOne(() => Card, (card) => card.user,  { cascade: true})
   card: Card;
+  @OneToOne(() => Subscription, (subscription) => subscription.coop,  { cascade: true})
+  subscription: Subscription;
 }

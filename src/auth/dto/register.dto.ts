@@ -83,4 +83,13 @@ export class RegisterDto {
   @ValidateIf((o) => o.role === UserRole.DRIVER)
   @IsNotEmpty()
   capacity: number;
+
+  //Subscription
+  @ValidateIf((o) => o.role === UserRole.COOP)
+  @IsNotEmpty()
+  duration: number;
+
+  @ValidateIf((o) => o.role === UserRole.COOP)
+  @IsNotEmpty()
+  amount: number;
 }

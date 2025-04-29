@@ -3,7 +3,7 @@ import { Injectable, BadRequestException, UnauthorizedException, NotFoundExcepti
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
-import { User, UserRole } from './entities/user.entity';
+import { SubscriptionStat, User, UserRole } from './entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
@@ -13,6 +13,8 @@ import { UsernameDto } from './dto/update_username.dto';
 import { PasswordDto } from './dto/update_pass.dto';
 import { Risk, RiskLevel } from 'src/coop/entities/risk.entity';
 import { Bus, State } from 'src/drivers/entities/bus.entity';
+import { Subscription } from 'src/dev/entities/subscription.entity';
+import { SubscriptionType } from 'src/dev/entities/subscription.entity';
 
 @Injectable()
 export class AuthService {
@@ -27,6 +29,8 @@ export class AuthService {
     private riskRepository: Repository<Risk>,
     @InjectRepository(Bus)
     private busRepository: Repository<Bus>,
+    @InjectRepository(Subscription)
+    private subscriptionRepository: Repository<Subscription>,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -59,6 +63,7 @@ export class AuthService {
         dto.middle_name,
         dto.driver_img
       );
+
     
       const userWithProfile = await this.userRepository.findOne({
         where: { id: savedUser.id },
@@ -77,7 +82,26 @@ export class AuthService {
       });
     
       await this.busRepository.save(bus);
-  }  
+  }
+
+  if (savedUser.role === UserRole.COOP) {
+    const date = new Date();
+    const expiredDate = new Date(date);
+    expiredDate.setMonth(date.getMonth() + dto.duration);
+    const subscription = this.subscriptionRepository.create({
+      coop: savedUser,
+      type: SubscriptionType.COOP,
+      duration: dto.duration,
+      amount: dto.amount,
+      created_at: date,
+      expired_at: expiredDate.toISOString()
+    });
+
+    await this.subscriptionRepository.save(subscription); 
+
+    savedUser.subscription_status = SubscriptionStat.SUBSCRIBED;
+    await this.userRepository.save(savedUser);
+  }
   
   if (savedUser.role === UserRole.DRIVER || savedUser.role === UserRole.PASSENGER) {
       const location = this.locationRepository.create({
@@ -117,6 +141,10 @@ export class AuthService {
       where: { email: dto.email },
     });
     if (!user) throw new UnauthorizedException("Invalid credentials");
+
+    if (user.role === UserRole.COOP && user.subscription_status === SubscriptionStat.EXPIRED) {
+      throw new UnauthorizedException("Login not allowed: Subscription expired");
+    }
 
     const isMatch = await bcrypt.compare(dto.password, user.password);
     if (!isMatch) throw new UnauthorizedException("Invalid credentials");
