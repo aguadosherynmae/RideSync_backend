@@ -8,10 +8,22 @@ export class Fare {
   id: number;
 
   @Column()
-  route_from: string;  
+  from_loc: string;  
+
+  @Column('decimal')
+  from_lat: number;
+
+  @Column('decimal')
+  from_long: number;
 
   @Column()
-  route_to: string;  
+  to_loc: string;  
+
+  @Column('decimal')
+  to_lat: number;
+
+  @Column('decimal')
+  to_long: number;
 
   @Column()
   amount: number;

@@ -11,6 +11,9 @@ export class Card  {
   token: string;
 
   @Column()
+  full_name: string;
+
+  @Column()
   four_digits: number;
 
   @Column()

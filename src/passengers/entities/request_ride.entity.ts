@@ -13,7 +13,14 @@ export class RequestRide  {
   id: number;
 
   @Column()
-  destination: string;
+  dest_loc: string;
+
+  @Column('decimal')
+  dest_lat: number;
+
+  @Column('decimal')
+  dest_long: number;
+
 
   @Column({ type: 'enum', enum: RequestState, default: RequestState.WAITING})
   state: RequestState;

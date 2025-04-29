@@ -1,5 +1,5 @@
 import { User } from 'src/auth/entities/user.entity';
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToOne, DeleteDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToOne, DeleteDateColumn, OneToMany, CreateDateColumn } from 'typeorm';
 import { BoardingDetails } from './boarding_details.entity';
 import { Fare } from 'src/coop/entities/fare.entity';
 import { Discount } from './discount.entity';
@@ -10,10 +10,10 @@ export class CashlessPayment  {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column('decimal')
   amount_paid: number;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @CreateDateColumn({ type: 'timestamp' })
   date_paid: Date;
 
   @Column()

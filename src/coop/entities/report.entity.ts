@@ -1,6 +1,7 @@
 import { Violation } from './violation.entity';
 import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn, DeleteDateColumn, OneToOne } from 'typeorm';
 import { BoardingDetails } from 'src/passengers/entities/boarding_details.entity';
+import { Discount } from 'src/passengers/entities/discount.entity';
 
 @Entity()
 export class Reports {
@@ -23,4 +24,6 @@ export class Reports {
   @ManyToOne(() => Violation, (violation) => violation.reports, { onDelete: 'CASCADE' }) 
   @JoinColumn({ name: 'violation_id' })
   violation: Violation;
+  @OneToOne(() => Discount, (discount) => discount.report,  { cascade: true})
+  discount: Discount;
 }

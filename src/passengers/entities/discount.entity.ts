@@ -1,8 +1,9 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn} from 'typeorm';
 import { Record } from 'src/coop/entities/record.entity';
 import { CashlessPayment } from './cashless_payment.entity';
+import { Reports } from 'src/coop/entities/report.entity';
 
-export enum DiscountStatus {
+export enum DiscountType {
   APPLIED = 'applied',
   NOT_APP = 'not_applied',
   USED = 'used'
@@ -16,16 +17,16 @@ export class Discount  {
   @Column({ type: 'timestamp' })
   expire_date: Date;
 
-  @Column()
-  discount_amount: number;
+  @Column({ type: 'decimal' })
+  discount_amount: number;  
 
-  @Column({ type: 'enum', enum:  DiscountStatus, default: DiscountStatus.NOT_APP})
-  discount_status: DiscountStatus;
+  @Column({ type: 'enum', enum:  DiscountType, default: DiscountType.NOT_APP})
+  discount_type: DiscountType;
 
   //Relationship
-  @OneToOne(() => Record, (record) => record.discount, { onDelete: 'CASCADE', nullable: true })
-  @JoinColumn({ name: 'record_id' })
-  record?: Record;
+  @OneToOne(() => Reports, (report) => report.discount, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'report_id' })
+  report?: Reports;
   @OneToOne(() => CashlessPayment, (cashless) => cashless.discount,  { cascade: true})
   cashless: CashlessPayment;
 }

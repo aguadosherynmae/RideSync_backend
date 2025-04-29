@@ -18,6 +18,12 @@ export class BoardingDetails  {
   @Column({nullable: true})
   current_loc: string;
 
+  @Column('decimal', { nullable: true })
+  current_lat: number;
+
+  @Column('decimal', { nullable: true })
+  current_long: number;
+
   @Column({ type: 'enum', enum: BoardStat, default: BoardStat.ACTIVE })
   board_stat: BoardStat;
 

@@ -6,6 +6,7 @@ import { ReportDto } from './dto/report.dto';
 import { RiskDto } from './dto/risk.dto';
 import { RecordDto } from './dto/record.dto';
 import { FareDto } from './dto/fare.dto';
+import { FilterRecordDto } from './dto/filter_record.dto';
 
 @Controller("coop")
 export class CoopController {
@@ -99,6 +100,14 @@ export class CoopController {
   @Post("createRecord")
   async createRecord(@Body() recordDto: RecordDto) {
     return this.coopService.createRecord(recordDto);
+  }
+  @Get("getRecord/:id/:date")
+  async getRecord(
+    @Param("id", ParseIntPipe) id: number,
+    @Param("date") date: string,
+    ) {
+    const filter: FilterRecordDto = { date: new Date(date) };
+    return this.coopService.getRecord(id, filter);
   }
 
   //Fare

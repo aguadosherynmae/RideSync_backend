@@ -7,6 +7,7 @@ import { UpdateProfileDto } from './dto/update_profile.dto';
 import { filter } from 'rxjs';
 import { PassengerViolationDto } from './dto/passenger_violation.dto';
 import { UpdatePassengerViolationDto } from './dto/update_passenger_violation.dto';
+import { CardDto } from './dto/card.dto';
 
 @Controller("passengers")
 export class PassengersController {
@@ -44,19 +45,19 @@ export class PassengersController {
   async createDriverBoarding(@Param("id", ParseIntPipe) id: number) {
     return this.passengersService.createDriverBoarding(id);
   }
-  @Delete("deleteDriverBoarding")
-  async deleteDriverBoarding() {
-    return this.passengersService.deleteDriverBoarding();
+  @Delete("deleteDriverBoarding/:id")
+  async deleteDriverBoarding(@Param("id", ParseIntPipe) id: number) {
+    return this.passengersService.deleteDriverBoarding(id);
   }
   @Get("UserBoarding/:id")
   async getUserBoarding(@Param("id", ParseIntPipe) id: number) {
     return this.passengersService.getUserBoarding(id);
   }
-  /*@Get("allActive/:id")
+  @Get("allActive/:id")
   async getActiveBoarding(
     @Param("id", ParseIntPipe) id: number,) {
     return this.passengersService.getActiveBoarding(id);
-  } */
+  }
 
   //Passenger Profile
   @Post("createProfile/:id")
@@ -119,5 +120,42 @@ export class PassengersController {
   @Get("passengerViolation/:id")
   async getPassengerViolations(@Param("id", ParseIntPipe) id: number) {
     return this.passengersService.getPassengerViolations(id);
+  }
+
+  //Card
+  @Post("createCard/:id")
+  async createCard(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() cardDto: CardDto
+  ) {
+    return this.passengersService.createCard(id, cardDto);
+  }
+  @Put("editCard/:id")
+  async editCard(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() updateCard: CardDto
+  ) {
+    return this.passengersService.editCard(id, updateCard);
+  }
+  @Delete("deleteCard/:id")
+  async softDeleteCard(@Param("id", ParseIntPipe) id: number) {
+    return this.passengersService.softDeleteCard(id);
+  }
+  @Get("getCard/:id")
+  async getCards(@Param("id", ParseIntPipe) id: number) {
+    return this.passengersService.getCard(id);
+  }
+
+  //Discount
+  @Put("editDiscount/:passenger_id/:id")
+  async editDiscount(
+    @Param('passenger_id', ParseIntPipe) passengerId: number,
+    @Param('id', ParseIntPipe) id: number,
+    ) {
+    return this.passengersService.editDiscount(passengerId, id);
+  }
+  @Get("ReportDisc/:id")
+  async getReportDisc(@Param("id", ParseIntPipe) id: number) {
+    return this.passengersService.getReportDisc(id);
   }
 }

@@ -12,9 +12,10 @@ import { DriverRiskLevel } from 'src/drivers/entities/driver_risk_level.entity';
 import { DriverProfile } from 'src/drivers/entities/driver_profile.entity';
 import { Fare } from './entities/fare.entity';
 import { DriverStatus } from 'src/drivers/entities/driver_status.entity';
+import { Discount } from 'src/passengers/entities/discount.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Violation, User, Reports, Record, BoardingDetails, Risk, DriverRiskLevel, DriverProfile, Fare, DriverStatus])],
+  imports: [TypeOrmModule.forFeature([Violation, User, Reports, Record, BoardingDetails, Risk, DriverRiskLevel, DriverProfile, Fare, DriverStatus, Discount])],
   controllers: [CoopController],
   providers: [CoopService]
 })

@@ -1,7 +1,7 @@
 import { Cron } from '@nestjs/schedule';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository, } from '@nestjs/typeorm';
-import { Repository, IsNull, In } from 'typeorm';
+import { Repository, IsNull, In, Not } from 'typeorm';
 import { User } from 'src/auth/entities/user.entity';
 import { RequestRide, RequestState } from './entities/request_ride.entity';
 import { BoardStat, BoardingDetails } from './entities/boarding_details.entity';
@@ -14,6 +14,11 @@ import { UpdateProfileDto } from './dto/update_profile.dto';
 import { PassengerViolationDto } from './dto/passenger_violation.dto';
 import { PassengerViolation } from './entities/passenger_violation.entity';
 import { UpdatePassengerViolationDto } from './dto/update_passenger_violation.dto';
+import { CardDto } from './dto/card.dto';
+import { Card } from './entities/card.entity';
+import { CashlessPayment } from './entities/cashless_payment.entity';
+import { Fare } from 'src/coop/entities/fare.entity';
+import { Discount, DiscountType } from './entities/discount.entity';
 
 @Injectable()
 export class PassengersService {
@@ -35,11 +40,23 @@ export class PassengersService {
 
     @InjectRepository(PassengerViolation)
     private passengerViolationRepository: Repository<PassengerViolation>,
+
+    @InjectRepository(Card)
+    private cardRepository: Repository<Card>,
+
+    @InjectRepository(CashlessPayment)
+    private cashlessRepository: Repository<CashlessPayment>,
+
+    @InjectRepository(Fare)
+    private fareRepository: Repository<Fare>,
+
+    @InjectRepository(Discount)
+    private discountRepository: Repository<Discount>,
   ) {}
 
   //Request Ride
   async createRequest(passenger_id: number, request: RequesDto) {
-    const { destination } = request;
+    const { dest_loc, dest_lat, dest_long } = request;
   
     const activePassenger = await this.userRepository.findOne({
       where: { id: passenger_id },
@@ -88,7 +105,9 @@ export class PassengersService {
   
     const request_ride = this.requestRepository.create({
       passenger: activePassenger,
-      destination,
+      dest_loc,
+      dest_lat,
+      dest_long,
       state: RequestState.WAITING,
     });
   
@@ -141,12 +160,12 @@ export class PassengersService {
       throw new NotFoundException("No Past Requests");
     }
 
-    return requests.map((req) => req.destination);
+    return requests.map((req) => req.dest_loc);
   }
 
   //Boarding Details
   async createPassengerBoarding(passenger_id: number, boarding: BoardingDto) {
-    const { driver_id, current_loc } = boarding;
+    const { driver_id, current_loc, current_lat, current_long } = boarding;
 
     const existingActiveBoard = await this.boardingRepository.findOne({
       where: {
@@ -186,12 +205,67 @@ export class PassengersService {
       driver,
       board_stat: BoardStat.ACTIVE,
       current_loc,
+      current_lat,
+      current_long
     });
 
     await this.boardingRepository.save(board);
 
     activeRequest.state = RequestState.NOT;
     await this.requestRepository.save(activeRequest);
+
+    const activeCard = await this.cardRepository.findOne({
+      where: {
+        user: { id: passenger_id },
+        isActive: true,
+      }
+    });
+
+    const activeDiscount = await this.discountRepository.findOne({
+      where: {
+        report: {
+          boarding: {
+            request: {
+              passenger: { id: passenger_id }
+            }
+          }
+        },
+        discount_type: DiscountType.APPLIED
+      }
+    });
+
+    const destination = board.request?.dest_loc;
+
+    const fares = await this.fareRepository.find({
+      where: {
+        to_loc: destination,
+      }
+    });
+  
+    if (fares.length === 0) {
+      throw new NotFoundException("No fare available for this destination");
+    }
+    const nearestFare = this.findNearestFare(current_lat, current_long, fares);
+
+    if (!nearestFare) {
+      throw new NotFoundException("No matching fare found based on current location and destination");
+    }
+
+    let currentCounter = 1;
+    const ref_num = `RS-${new Date().toISOString().split('T')[0].replace(/-/g, '/').slice(0, 10)}-${(currentCounter++).toString().padStart(6, '0')}`;
+
+    const payment = this.cashlessRepository.create({
+      amount_paid: nearestFare.amount,
+      ref_num,
+      boarding: board,
+      fare: nearestFare,
+      discount: activeDiscount || null,
+      card: activeCard,
+    } as Partial<CashlessPayment>);
+
+    await this.cashlessRepository.save(payment);
+
+    await this.getActiveBoarding(driver_id);
 
     return board;
   }
@@ -211,9 +285,12 @@ export class PassengersService {
       board_stat: BoardStat.ACTIVE,
     });
 
-    return await this.boardingRepository.save(board);
+    await this.boardingRepository.save(board);
+    await this.getActiveBoarding(driver_id);
+
+    return board;
   }
-  async deleteDriverBoarding() {
+  async deleteDriverBoarding(driver_id:number) {
     const boarding = await this.boardingRepository.findOne({
       where: { request: IsNull() },
       order: { created_at: 'DESC' },
@@ -227,6 +304,8 @@ export class PassengersService {
     if (!deleteBoard.affected) {
       throw new NotFoundException("Boarding not found");
     }
+
+    await this.getActiveBoarding(driver_id);
   }
   async getUserBoarding(passenger_id: number) {
     const boarding = await this.boardingRepository.findOne({
@@ -243,7 +322,7 @@ export class PassengersService {
 
     return boarding;
   }
-  /* async getActiveBoarding(driver_id: number) {
+  async getActiveBoarding(driver_id: number) {
     const active = await this.boardingRepository.find({
       where: {
         board_stat: BoardStat.ACTIVE,
@@ -269,7 +348,37 @@ export class PassengersService {
       total: active.length,
       data: updatedActive,
     };
-  } */
+  }
+
+  //Compute Cashless Payment
+  private findNearestFare(currentLat: number, currentLong: number, fares: Fare[]): Fare | null {
+    let nearestFare: Fare | null = null;
+    let minDistance = Number.MAX_SAFE_INTEGER;
+  
+    for (const fare of fares) {
+      const distance = this.haversineDistance(currentLat, currentLong, fare.from_lat, fare.from_long);
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestFare = fare;
+      }
+    }
+    
+    return nearestFare;
+  }
+  private haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const toRad = (x: number) => x * Math.PI / 180;
+  
+    const R = 6371; // Radius of the earth in km
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+  
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+  
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c; // distance in km
+  }
 
   //Passenger Profile
   async createPassengerProfile(passenger_id: number, passengerProfileDto: PassengerProfileDto) {
@@ -499,5 +608,131 @@ export class PassengersService {
       throw new NotFoundException(`No violations found`);
     }
     return all;
+  }
+
+  //Card
+  async createCard(passenger_id: number, cardDto: CardDto) {
+    const { token, full_name, four_digits, card_brand, expire_date } = cardDto;
+
+    const passenger = await this.userRepository.findOne({
+      where: { id: passenger_id },
+    });
+    if (!passenger) {
+      throw new NotFoundException("Passenger not found");
+    }
+    const activeCard = await this.cardRepository.findOne({
+      where: { user: passenger, isActive: true },
+    });
+  
+    if (activeCard) {
+      activeCard.isActive = false; 
+      await this.cardRepository.save(activeCard); 
+    }
+    const card = this.cardRepository.create({
+      user: passenger,
+      token,
+      full_name,
+      four_digits,
+      card_brand,
+      isActive: true,
+      expire_date
+    });
+
+    return await this.cardRepository.save(card);
+  }
+  async editCard(id: number, updateCard: CardDto) {
+    const card = await this.cardRepository.findOne({ where: { id } });
+    if (!card) {
+      throw new NotFoundException("Card not found");
+    }
+
+    Object.assign(card, updateCard);
+    return await this.cardRepository.save(card);
+  }
+  async softDeleteCard(id: number) {
+    const soft_delete = await this.cardRepository.softDelete(id);
+    if (!soft_delete) {
+      throw new NotFoundException(`Card not found`);
+    }
+  }
+  async getCard(passenger_id: number) {
+    const card = await this.cardRepository.find({
+      where: {
+        deletedAt: IsNull(),
+        user: { id: passenger_id },
+      },
+      order: {
+        isActive: 'DESC',
+      },
+    });
+
+    if (!card.length) {
+      throw new NotFoundException(`No Card found`);
+    }
+
+    return card;
+  }
+
+  //Discount
+  async editDiscount(passenger_id: number, id: number) {
+    const discount = await this.discountRepository.findOne({
+      where: {
+        id,
+        report: {
+          boarding: {
+            request: {
+              passenger: { id: passenger_id },
+            },
+          },
+        },
+      },
+    });
+  
+    if (!discount) {
+      throw new NotFoundException('Discount not found or does not belong to the passenger');
+    }
+  
+    const otherAppliedDiscounts = await this.discountRepository.find({
+      where: {
+        report: {
+          boarding: {
+            request: {
+              passenger: { id: passenger_id },
+            },
+          },
+        },
+        discount_type: DiscountType.APPLIED,
+        id: Not(id), 
+      },
+    });
+  
+    if (otherAppliedDiscounts.length > 0) {
+      throw new BadRequestException('Another discount is already applied for this passenger');
+    }
+  
+    discount.discount_type = DiscountType.APPLIED;
+  
+    return await this.discountRepository.save(discount);
+  }
+  async getReportDisc(passengerId: number) {
+    const report_disc = await this.discountRepository.find({
+      where: {
+        discount_type: DiscountType.APPLIED || DiscountType.NOT_APP,
+        cashless: {
+          boarding: {
+            request: {
+              passenger: { id: passengerId },
+            },
+          },
+        },
+      },
+      relations: ["report"],
+      order: { expire_date: "ASC" },
+    });
+
+    if (!report_disc.length) {
+      throw new NotFoundException("No list of discounts");
+    }
+    return report_disc;
   }
 }

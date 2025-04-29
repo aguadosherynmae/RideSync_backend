@@ -18,6 +18,8 @@ import { RecordDto } from './dto/record.dto';
 import { Fare } from './entities/fare.entity';
 import { FareDto } from './dto/fare.dto';
 import { DriverStatus, Status } from 'src/drivers/entities/driver_status.entity';
+import { Discount, DiscountType } from 'src/passengers/entities/discount.entity';
+import { FilterRecordDto } from './dto/filter_record.dto';
 
 @Injectable()
 export class CoopService {
@@ -51,6 +53,9 @@ export class CoopService {
 
     @InjectRepository(DriverStatus)
     private driverStatusRepository: Repository<DriverStatus>,
+
+    @InjectRepository(Discount)
+    private discountRepository: Repository<Discount>,
 
   ) {}
     
@@ -263,7 +268,7 @@ export class CoopService {
 
     if (reportCount === 5) {
       const driver = activeBoarding.driver;
-
+      const current_date = new Date();
       await this.recordRepository.save({
         driver,
         report_by: ReportBy.PASSENGERS,
@@ -279,6 +284,15 @@ export class CoopService {
         },
         { coop_deletedAt: new Date() }
       );
+
+      const expiration_date = new Date(current_date);
+      expiration_date.setDate(current_date.getDate() + 7);
+      await this.discountRepository.save({
+        report,
+        expire_date: expiration_date,
+        discount_amount: 0.50,
+        discount_type: DiscountType.NOT_APP
+      });
     }
 
     const driver_id = activeBoarding.driver.id
@@ -406,10 +420,32 @@ export class CoopService {
   
     return record;
   }
+  async getRecord(coop_id: number, filter: FilterRecordDto) {
+    const { date } = filter;
+
+    const query = this.recordRepository.createQueryBuilder("record")
+    .leftJoinAndSelect("record.violation", "violation")
+    .leftJoinAndSelect("record.driver", "driver")
+    .leftJoinAndSelect("driver.coop", "coop") 
+    .where("coop.id = :coop_id", { coop_id });
+
+  if (date) {
+    query.andWhere("DATE(record.created_at) = :date", { date });
+  }
+
+  query.orderBy("record.created_at", "ASC");
+
+  const records = await query.getMany();
+
+    if (!records.length) {
+      throw new NotFoundException("No List of Drivers Violation");
+    }
+    return records;
+  }
 
   //Fare
   async createFare(coop_id: number, fareDto: FareDto) {
-    const { route_from, route_to, amount } = fareDto;
+    const { from_loc, from_lat, from_long, to_loc, to_lat, to_long, amount } = fareDto;
     const activeCoop = await this.userRepository.findOne({ 
       where: { 
         id: coop_id,
@@ -422,8 +458,12 @@ export class CoopService {
 
     const fare = this.fareRepository.create({
       coop: activeCoop,
-      route_from,
-      route_to,
+      from_loc,
+      from_lat,
+      from_long,
+      to_loc,
+      to_lat,
+      to_long,
       amount
     } as DeepPartial<Fare>);
 
@@ -467,7 +507,7 @@ export class CoopService {
           coop: {
             id: coop_id
           }
-        }
+        } 
     },
     });
     const duty_driver = await this.driverStatusRepository.count({

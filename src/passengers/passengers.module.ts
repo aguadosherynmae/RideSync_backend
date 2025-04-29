@@ -11,9 +11,10 @@ import { PassengerViolation } from './entities/passenger_violation.entity';
 import { Card } from './entities/card.entity';
 import { CashlessPayment } from './entities/cashless_payment.entity';
 import { Discount } from './entities/discount.entity';
+import { Fare } from 'src/coop/entities/fare.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, RequestRide, BoardingDetails, DriverProfile, PassengerProfile, PassengerViolation, Card, CashlessPayment, Discount])],
+  imports: [TypeOrmModule.forFeature([User, RequestRide, BoardingDetails, DriverProfile, PassengerProfile, PassengerViolation, Card, CashlessPayment, Discount, Fare])],
   controllers: [PassengersController],
   providers: [PassengersService]
 })
