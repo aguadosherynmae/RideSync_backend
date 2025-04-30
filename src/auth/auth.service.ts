@@ -15,6 +15,7 @@ import { Risk, RiskLevel } from 'src/coop/entities/risk.entity';
 import { Bus, State } from 'src/drivers/entities/bus.entity';
 import { Subscription } from 'src/dev/entities/subscription.entity';
 import { SubscriptionType } from 'src/dev/entities/subscription.entity';
+import { Fare } from 'src/coop/entities/fare.entity';
 
 @Injectable()
 export class AuthService {
@@ -31,6 +32,8 @@ export class AuthService {
     private busRepository: Repository<Bus>,
     @InjectRepository(Subscription)
     private subscriptionRepository: Repository<Subscription>,
+    @InjectRepository(Fare)
+    private fareRepository: Repository<Fare>,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -153,6 +156,29 @@ export class AuthService {
     return {
       accessToken: this.jwtService.sign(payload),
     };
+  }
+  async registration(){
+    const coopUsers = await this.userRepository.find({
+      where: { role: UserRole.COOP },
+      select: ['username', 'id'],
+    });
+    const locations = await this.location();
+
+    return {
+      coopUsers: coopUsers.map(user => ({ username: user.username, id: user.id })),
+      locations,
+    };
+  }
+  async location(): Promise<string[]> {
+    const loc = await this.fareRepository.find({
+      select: ['from_loc', 'to_loc'],
+    });
+    const uniqueLocations = new Set<string>();
+    loc.forEach(fare => {
+      if (fare.from_loc) uniqueLocations.add(fare.from_loc);
+      if (fare.to_loc) uniqueLocations.add(fare.to_loc);
+    });
+    return Array.from(uniqueLocations);
   }
   async updateUser(user_id:number, usernameDto: UsernameDto) {
     const user = await this.userRepository.findOne({ 

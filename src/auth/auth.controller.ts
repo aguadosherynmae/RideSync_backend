@@ -39,5 +39,13 @@ export class AuthController {
   ) {
     return this.authService.updatePassword(id, passwordDto);
   }
+  @Get("registration")
+  async registration() {
+    return this.authService.registration();
+  }
+  @Get("location")
+  async location() {
+    return this.authService.location();
+  }
 }
 
