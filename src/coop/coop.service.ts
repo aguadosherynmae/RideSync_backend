@@ -236,9 +236,10 @@ export class CoopService {
           passenger: {
             id: passenger_id
           }
+        },
+        board_stat: BoardStat.ACTIVE
       },
-      board_stat: BoardStat.ACTIVE
-      },
+      relations: ['driver', 'request', 'request.passenger'],
     });
     if (!activeBoarding) {
       throw new NotFoundException("Boarding details not found");
@@ -258,17 +259,25 @@ export class CoopService {
 
     await this.reportRepository.save(report);
 
-    const reportCount = await this.reportRepository.count({
+    const driver_id = activeBoarding.driver.id;
+    const reports = await this.reportRepository.find({
       where: {
-        boarding: activeBoarding ,
+        boarding: {
+          driver: {
+            id: driver_id
+          }
+        },
         violation: { id: violation_id },
         coop_deletedAt: IsNull(), 
       },
     });
 
+    const reportCount = reports.length;
+
     if (reportCount === 5) {
       const driver = activeBoarding.driver;
       const current_date = new Date();
+
       await this.recordRepository.save({
         driver,
         report_by: ReportBy.PASSENGERS,
@@ -276,29 +285,25 @@ export class CoopService {
         created_at: new Date(),
       });
 
-      await this.reportRepository.update(
-        {
-          boarding: activeBoarding,
-          violation: { id: violation_id },
-          coop_deletedAt: IsNull(),
-        },
-        { coop_deletedAt: new Date() }
-      );
-
       const expiration_date = new Date(current_date);
       expiration_date.setDate(current_date.getDate() + 7);
-      await this.discountRepository.save({
-        report,
-        expire_date: expiration_date,
-        discount_amount: 0.50,
-        discount_type: DiscountType.NOT_APP
-      });
+      for (const rep of reports) {
+        await this.reportRepository.update(
+          { id: rep.id },
+          { coop_deletedAt: new Date() }
+        );
+        await this.discountRepository.save({
+          report: rep,
+          expire_date: expiration_date,
+          discount_amount: 0.50,
+          discount_type: DiscountType.NOT_APP
+        });
+      }
     }
 
-    const driver_id = activeBoarding.driver.id
     await this.updateDriverRiskLevel(driver_id);
     return report;
-  }
+}
   async editReport(id: number, update_report: ReportDto) {
     const report = await this.reportRepository.findOne({ where: { id } });
     if (!report) {
@@ -420,7 +425,7 @@ export class CoopService {
   
     return record;
   }
-  async getRecord(coop_id: number, filter: FilterRecordDto) {
+  async filterRecord(coop_id: number, filter: FilterRecordDto) {
     const { date } = filter;
 
     const query = this.recordRepository.createQueryBuilder("record")
@@ -436,6 +441,23 @@ export class CoopService {
   query.orderBy("record.created_at", "ASC");
 
   const records = await query.getMany();
+
+    if (!records.length) {
+      throw new NotFoundException("No List of Drivers Violation");
+    }
+    return records;
+  }
+  async getRecords(coopId:number) {
+    const records = await this.recordRepository.find({
+      where: {
+        driver: {
+          coop: {
+            id: coopId
+          }
+        }
+      },
+      relations: ["driver"],
+    });
 
     if (!records.length) {
       throw new NotFoundException("No List of Drivers Violation");

@@ -20,8 +20,8 @@ export class Violation  {
   @Column({ type: 'enum', enum: Severity })
   severity: Severity;
 
-  @Column({ default: false }) 
-  isDefault: boolean;
+  @Column({ default: false, nullable: true }) 
+  isDefault?: boolean;
 
   @DeleteDateColumn()
   deletedAt?: Date;

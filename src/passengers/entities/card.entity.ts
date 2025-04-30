@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, DeleteDateColumn, UpdateDateColumn, OneToMany, JoinColumn} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne, DeleteDateColumn, UpdateDateColumn, OneToMany, JoinColumn, ManyToOne} from 'typeorm';
 import { CashlessPayment } from './cashless_payment.entity';
 import { User } from 'src/auth/entities/user.entity';
 
@@ -34,7 +34,7 @@ export class Card  {
   //Relationships
   @OneToMany(() => CashlessPayment, (cashless) => cashless.card,  { cascade: true})
   cashless: CashlessPayment[];
-  @OneToOne(() => User, (user) => user.card , { onDelete: 'CASCADE' }) 
+  @ManyToOne(() => User, (user) => user.card , { onDelete: 'CASCADE' }) 
   @JoinColumn({ name: 'user_id' })
   user: User;
 }

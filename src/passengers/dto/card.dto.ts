@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import { IsString, IsNotEmpty, IsInt, IsDate } from 'class-validator';
 
 export class CardDto {
@@ -17,6 +18,7 @@ export class CardDto {
   @IsNotEmpty()
   card_brand: string;
 
+  @Type(() => Date)
   @IsDate()
   expire_date: Date;
 }

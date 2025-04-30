@@ -214,13 +214,46 @@ export class PassengersService {
     activeRequest.state = RequestState.NOT;
     await this.requestRepository.save(activeRequest);
 
+    const destination = board.request?.dest_loc;
+
+    const fares = await this.fareRepository.find({
+      where: {
+        to_loc: destination,
+      }
+    });
+    
+    if (fares.length === 0) {
+      throw new NotFoundException("No fare available for this destination");
+    }
+
+    const nearestFare = this.findNearestFare(current_lat, current_long, fares);
+
+    if (!nearestFare) {
+      throw new NotFoundException("No matching fare found based on current location and destination");
+    }
+
     const activeCard = await this.cardRepository.findOne({
       where: {
         user: { id: passenger_id },
         isActive: true,
       }
     });
+    let finalAmount = nearestFare.amount;
+    let appliedDiscount: Discount | null = null;
 
+    const passDiscount = await this.passengerRepository.findOne({
+      where: {
+        user: {
+          id: passenger_id
+        },
+        discount_status: DiscountStatus.VERIFIED
+      }
+    });
+
+    if (passDiscount) {
+      finalAmount = nearestFare.amount * 0.8; // Reduce to 80% of original (20% discount)
+    }
+    
     const activeDiscount = await this.discountRepository.findOne({
       where: {
         report: {
@@ -234,36 +267,27 @@ export class PassengersService {
       }
     });
 
-    const destination = board.request?.dest_loc;
-
-    const fares = await this.fareRepository.find({
-      where: {
-        to_loc: destination,
-      }
-    });
-  
-    if (fares.length === 0) {
-      throw new NotFoundException("No fare available for this destination");
-    }
-    const nearestFare = this.findNearestFare(current_lat, current_long, fares);
-
-    if (!nearestFare) {
-      throw new NotFoundException("No matching fare found based on current location and destination");
+    if (activeDiscount && activeDiscount.discount_amount) {
+      finalAmount -= activeDiscount.discount_amount;
+      appliedDiscount = activeDiscount; 
+      finalAmount = Math.max(0, finalAmount);
     }
 
-    let currentCounter = 1;
-    const ref_num = `RS-${new Date().toISOString().split('T')[0].replace(/-/g, '/').slice(0, 10)}-${(currentCounter++).toString().padStart(6, '0')}`;
+    if (activeCard) {
+      let currentCounter = 1;
+      const ref_num = `RS-${new Date().toISOString().split('T')[0].replace(/-/g, '/').slice(0, 10)}-${(currentCounter++).toString().padStart(6, '0')}`;
 
-    const payment = this.cashlessRepository.create({
-      amount_paid: nearestFare.amount,
-      ref_num,
-      boarding: board,
-      fare: nearestFare,
-      discount: activeDiscount || null,
-      card: activeCard,
-    } as Partial<CashlessPayment>);
+      const payment = this.cashlessRepository.create({
+        amount_paid: finalAmount,
+        ref_num,
+        boarding: board,
+        fare: nearestFare,
+        discount: appliedDiscount,
+        card: activeCard
+      } as Partial<CashlessPayment>);
 
-    await this.cashlessRepository.save(payment);
+      await this.cashlessRepository.save(payment);
+    }
 
     await this.getActiveBoarding(driver_id);
 
@@ -326,10 +350,8 @@ export class PassengersService {
     const active = await this.boardingRepository.find({
       where: {
         board_stat: BoardStat.ACTIVE,
-        driver: { 
-          driver: {
-            id: driver_id
-          }
+        driver: {
+          id: driver_id,
         },
       },
       relations: ["driver", "request", "cashless", "cashless.discount"],
@@ -621,7 +643,10 @@ export class PassengersService {
       throw new NotFoundException("Passenger not found");
     }
     const activeCard = await this.cardRepository.findOne({
-      where: { user: passenger, isActive: true },
+      where: {
+        user: { id: passenger_id },
+        isActive: true,
+      },
     });
   
     if (activeCard) {
@@ -649,6 +674,29 @@ export class PassengersService {
     Object.assign(card, updateCard);
     return await this.cardRepository.save(card);
   }
+  async activateCard(passenger_id: number, id: number) {
+    const cards = await this.cardRepository.find({
+      where: {
+        user: {
+          id: passenger_id,
+        },
+      },
+    });
+  
+    if (!cards.length) {
+      throw new NotFoundException("No passenger card");
+    }
+  
+    const activeCard = cards.find(card => card.id === id);
+    if (!activeCard) {
+      throw new NotFoundException("Card not found for this passenger");
+    }
+  
+    for (const card of cards) {
+      card.isActive = (card.id === id); 
+      await this.cardRepository.save(card);
+    }
+  }  
   async softDeleteCard(id: number) {
     const soft_delete = await this.cardRepository.softDelete(id);
     if (!soft_delete) {

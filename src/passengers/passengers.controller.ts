@@ -4,7 +4,6 @@ import { RequesDto } from './dto/request_ride.dto';
 import { BoardingDto } from './dto/boarding_details';
 import { PassengerProfileDto } from './dto/passenger_profile.dto';
 import { UpdateProfileDto } from './dto/update_profile.dto';
-import { filter } from 'rxjs';
 import { PassengerViolationDto } from './dto/passenger_violation.dto';
 import { UpdatePassengerViolationDto } from './dto/update_passenger_violation.dto';
 import { CardDto } from './dto/card.dto';
@@ -136,6 +135,13 @@ export class PassengersController {
     @Body() updateCard: CardDto
   ) {
     return this.passengersService.editCard(id, updateCard);
+  }
+  @Put("activateCard/:passenger_id/:id")
+  async activateCard(
+    @Param('passenger_id', ParseIntPipe) passengerId: number,
+    @Param('id', ParseIntPipe) id: number,
+    ) {
+    return this.passengersService.activateCard(passengerId, id);
   }
   @Delete("deleteCard/:id")
   async softDeleteCard(@Param("id", ParseIntPipe) id: number) {

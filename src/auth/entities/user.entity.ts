@@ -64,8 +64,8 @@ export class User {
   risk: Risk[];
   @OneToMany(() => Fare, (fare) => fare.coop, { cascade: true })
   fare: Fare[];
-  @OneToOne(() => Card, (card) => card.user,  { cascade: true})
-  card: Card;
+  @OneToMany(() => Card, (card) => card.user,  { cascade: true})
+  card: Card[];
   @OneToOne(() => Subscription, (subscription) => subscription.coop,  { cascade: true})
   subscription: Subscription;
 }

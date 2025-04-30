@@ -101,14 +101,19 @@ export class CoopController {
   async createRecord(@Body() recordDto: RecordDto) {
     return this.coopService.createRecord(recordDto);
   }
-  @Get("getRecord/:id/:date")
-  async getRecord(
+  @Get("filterRecord/:id/:date")
+  async filterRecord(
     @Param("id", ParseIntPipe) id: number,
     @Param("date") date: string,
     ) {
     const filter: FilterRecordDto = { date: new Date(date) };
-    return this.coopService.getRecord(id, filter);
+    return this.coopService.filterRecord(id, filter);
   }
+  @Get("getRecords/:id")
+  async getRecords(@Param("id", ParseIntPipe) id: number) {
+    return this.coopService.getRecords(id);
+  }
+
 
   //Fare
   @Post("createFare/:id")
