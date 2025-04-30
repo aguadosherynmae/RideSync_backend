@@ -783,4 +783,32 @@ export class PassengersService {
     }
     return report_disc;
   }
+
+  //Cashless Payment
+  async softDeletePayment(id: number) {
+    const soft_delete = await this.cashlessRepository.softDelete(id);
+    if (!soft_delete) {
+      throw new NotFoundException(`Cashless Payment not found`);
+    }
+  }
+  async getPaymentHistory(passenger_id: number) {
+    const history = await this.cashlessRepository.find({
+      where: {
+        deletedAt: IsNull(),
+        boarding: {
+          request: {
+            passenger: { id: passenger_id },
+          },
+        },
+      },
+      order: { date_paid: "ASC" },
+      take: 5,
+    });
+
+    if (!history.length) {
+      throw new NotFoundException("No History of Cashless Payment");
+    }
+
+    return history;
+  }
 }

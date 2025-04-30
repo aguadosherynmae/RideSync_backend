@@ -164,4 +164,14 @@ export class PassengersController {
   async getReportDisc(@Param("id", ParseIntPipe) id: number) {
     return this.passengersService.getReportDisc(id);
   }
+
+  //Cashless Payment
+  @Delete("deletePayment/:id")
+  async softDeletePayment(@Param("id", ParseIntPipe) id: number) {
+    return this.passengersService.softDeletePayment(id);
+  }
+  @Get("PaymentHistory/:id")
+  async getPaymentHistory(@Param("id", ParseIntPipe) id: number) {
+    return this.passengersService.getPaymentHistory(id);
+  }
 }
