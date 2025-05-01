@@ -169,16 +169,33 @@ export class AuthService {
       locations,
     };
   }
-  async location(): Promise<string[]> {
+  async location(): Promise<{ location: string, lat: number, long: number }[]> {
     const loc = await this.fareRepository.find({
-      select: ['from_loc', 'to_loc'],
+        select: ['from_loc', 'from_lat', 'from_long', 'to_loc', 'to_lat', 'to_long'],
     });
-    const uniqueLocations = new Set<string>();
+
+    const locationMap = new Map<string, { lat: number, long: number }>();
+
     loc.forEach(fare => {
-      if (fare.from_loc) uniqueLocations.add(fare.from_loc);
-      if (fare.to_loc) uniqueLocations.add(fare.to_loc);
+        if (fare.from_loc && !locationMap.has(fare.from_loc)) {
+            locationMap.set(fare.from_loc, {
+                lat: fare.from_lat,
+                long: fare.from_long,
+            });
+        }
+        if (fare.to_loc && !locationMap.has(fare.to_loc)) {
+            locationMap.set(fare.to_loc, {
+                lat: fare.to_lat,
+                long: fare.to_long,
+            });
+        }
     });
-    return Array.from(uniqueLocations);
+
+    return Array.from(locationMap, ([location, coords]) => ({
+        location,
+        lat: coords.lat,
+        long: coords.long,
+    }));
   }
   async updateUser(user_id:number, usernameDto: UsernameDto) {
     const user = await this.userRepository.findOne({ 

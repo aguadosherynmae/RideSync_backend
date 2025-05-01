@@ -3,7 +3,7 @@ import { CoopService } from './coop.service';
 import { ViolationDto } from './dto/violation.dto';
 import { UpdateViolationDto } from './dto/update_violation.dto';
 import { ReportDto } from './dto/report.dto';
-import { RiskDto } from './dto/risk.dto';
+import { UpdateRiskDto } from './dto/update_risk.dto';
 import { RecordDto } from './dto/record.dto';
 import { FareDto } from './dto/fare.dto';
 import { FilterRecordDto } from './dto/filter_record.dto';
@@ -88,12 +88,22 @@ export class CoopController {
   }
 
   //Risk
+  @Post("createRisk/:id")
+  async createRisk(
+    @Param("id", ParseIntPipe) id: number,
+  ) {
+    return this.coopService.createRisk(id);
+  }
   @Put("editRisk/:id")
   async editRisk(
     @Param("id", ParseIntPipe) id: number,
-    @Body() updateRisk: RiskDto
+    @Body() updateRisk: UpdateRiskDto
   ) {
     return this.coopService.editRisk(id, updateRisk);
+  }
+  @Get("getRisk/:id")
+  async getRisk(@Param("id", ParseIntPipe) id: number) {
+    return this.coopService.getRisk(id);
   }
 
   //Record

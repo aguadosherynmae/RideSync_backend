@@ -12,7 +12,7 @@ import { Reports } from './entities/report.entity';
 import { Record, ReportBy } from './entities/record.entity';
 import { Risk, RiskLevel } from './entities/risk.entity';
 import { DriverRiskLevel } from 'src/drivers/entities/driver_risk_level.entity';
-import { RiskDto } from './dto/risk.dto';
+import { UpdateRiskDto } from './dto/update_risk.dto';
 import { DriverProfile } from 'src/drivers/entities/driver_profile.entity';
 import { RecordDto } from './dto/record.dto';
 import { Fare } from './entities/fare.entity';
@@ -174,7 +174,15 @@ export class CoopService {
       return acc + (curr.violation.severity || 0);
     }, 0);
   
-    const risks = await this.riskRepository.find();
+    const risks = await this.riskRepository.find({
+      where: {
+        coop: {
+          driver_profile: {
+            id: driver_id
+          }
+        },
+      }
+    });
     let level: string = 'none';
 
     for (const risk of risks) {
@@ -303,7 +311,7 @@ export class CoopService {
 
     await this.updateDriverRiskLevel(driver_id);
     return report;
-}
+  }
   async editReport(id: number, update_report: ReportDto) {
     const report = await this.reportRepository.findOne({ where: { id } });
     if (!report) {
@@ -390,7 +398,41 @@ export class CoopService {
   }
 
   //Risk
-  async editRisk(id: number, updateRisk: RiskDto) {
+  async createRisk(coop_id: number) {
+    const activeCoop = await this.userRepository.findOne({
+      where: {
+        id: coop_id,
+      },
+    });
+    if (!activeCoop) {
+      throw new NotFoundException("Risk not found");
+    }
+  
+    const highRisk = this.riskRepository.create({
+      coop: activeCoop,
+      risk_level: RiskLevel.HIGH,
+      value: 50,
+    });
+    const mediumRisk = this.riskRepository.create({
+      coop: activeCoop,
+      risk_level: RiskLevel.MEDIUM,
+      value: 30,
+    });
+    const lowRisk = this.riskRepository.create({
+      coop: activeCoop,
+      risk_level: RiskLevel.LOW,
+      value: 10,
+    });
+  
+    await Promise.all([
+      this.riskRepository.save(highRisk),
+      this.riskRepository.save(mediumRisk),
+      this.riskRepository.save(lowRisk),
+    ]);
+  
+    return [highRisk, mediumRisk, lowRisk];
+  }
+  async editRisk(id: number, updateRisk: UpdateRiskDto) {
     const risk = await this.riskRepository.findOne({ where: { id } });
     if (!risk) {
       throw new NotFoundException("Risk not found");
@@ -398,6 +440,20 @@ export class CoopService {
 
     Object.assign(risk, updateRisk);
     return await this.riskRepository.save(risk);
+  }
+  async getRisk(coop_id:number) {
+    const risks = await this.riskRepository.find({
+      where: {
+        coop: {
+          id: coop_id
+        }
+      },
+    });
+
+    if (!risks.length) {
+      throw new NotFoundException("No List of Risk");
+    }
+    return risks;
   }
 
   //Record

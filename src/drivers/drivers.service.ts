@@ -413,7 +413,9 @@ export class DriversService {
     const bus_status = await this.busRepository.findOne({ 
       where: {
         driver_profile: {
-          id: driver_id
+          driver: {
+            id: driver_id
+          }
         }
       }    
      });
@@ -428,7 +430,9 @@ export class DriversService {
     const bus_status = await this.busRepository.findOne({ 
       where: {
         driver_profile: {
-          id: driver_id,
+          driver: {
+            id: driver_id
+          },
           driver_status: {
             status: Status.IN_TRANSIT
           }

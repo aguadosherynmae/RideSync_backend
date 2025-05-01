@@ -194,7 +194,11 @@ export class PassengersService {
     }
 
     const driver = await this.driverRepository.findOne({
-      where: { id: driver_id },
+      where: { 
+        driver: {
+          id: driver_id
+        },
+      },
     });
     if (!driver) {
       throw new NotFoundException("Driver not found");
@@ -297,8 +301,10 @@ export class PassengersService {
 
     const activeDriver = await this.driverRepository.findOne({
       where: {
-        id: driver_id
-      }
+        driver: {
+          id: driver_id
+        },
+      },
     });
     if (!activeDriver) {
       throw new NotFoundException("Driver not found");
@@ -328,7 +334,6 @@ export class PassengersService {
     if (!deleteBoard.affected) {
       throw new NotFoundException("Boarding not found");
     }
-
     await this.getActiveBoarding(driver_id);
   }
   async getUserBoarding(passenger_id: number) {
@@ -351,7 +356,9 @@ export class PassengersService {
       where: {
         board_stat: BoardStat.ACTIVE,
         driver: {
-          id: driver_id,
+          driver: {
+            id: driver_id
+          }
         },
       },
       relations: ["driver", "request", "cashless", "cashless.discount"],
